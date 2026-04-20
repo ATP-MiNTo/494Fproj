@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_", env_file=".env", extra="ignore")
 
-    hf_model_name: str = "microsoft/resnet-18"
+    hf_model_name: str = "timm/mobilenetv4_conv_medium.e500_r224_in1k"
     input_size: int = 224
     max_upload_mb: int = 5
     accepted_extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png", ".webp", ".bmp")

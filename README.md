@@ -4,7 +4,7 @@ A small CPU-friendly image classification service built around a Hugging Face mo
 
 ## What is included
 
-- Hugging Face source model: `microsoft/resnet-18`
+- Hugging Face source model: `timm/mobilenetv4_conv_medium.e500_r224_in1k`
 - Optimization scripts for PyTorch, ONNX, and INT8 quantized ONNX
 - Async FastAPI `POST /predict` endpoint
 - ProcessPoolExecutor-based CPU offload

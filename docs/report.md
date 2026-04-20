@@ -2,7 +2,7 @@
 
 ## Model Selection
 
-- Model: `microsoft/resnet-18`
+- Model: `timm/mobilenetv4_conv_medium.e500_r224_in1k`
 - Task: image classification on ImageNet-1k
 - Input size: `224 x 224`
 - Reason for selection: compact backbone, low CPU cost, and straightforward export to ONNX
