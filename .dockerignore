@@ -1,0 +1,9 @@
+__pycache__/
+.pytest_cache/
+.git/
+.github/
+tests/
+docs/*.json
+*.pyc
+*.pyo
+*.pyd
