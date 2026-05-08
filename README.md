@@ -61,6 +61,37 @@ Example response:
 }
 ```
 
+## Cloud API Usage
+
+If you deployed the app to Hugging Face Spaces, replace `<username>/<space-name>` with your Space URL:
+
+```bash
+https://<username>-<space-name>.hf.space
+```
+
+Health check:
+
+```bash
+curl https://<username>-<space-name>.hf.space/healthz
+```
+
+Prediction:
+
+```bash
+curl -X POST \
+  -F "file=@cat.jpg" \
+  https://<username>-<space-name>.hf.space/predict
+```
+
+If your Space is private, add a bearer token:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $HF_TOKEN" \
+  -F "file=@cat.jpg" \
+  https://<username>-<space-name>.hf.space/predict
+```
+
 ## Run tests
 
 ```bash
