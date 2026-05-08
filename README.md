@@ -1,3 +1,15 @@
+#---
+title: FastAPI Image Classifier
+emoji: "🖼️"
+colorFrom: "blue"
+colorTo: "green"
+sdk: docker
+sdk_version: "2"
+python_version: "3.11"
+app_file: app/main.py
+pinned: false
+---
+
 # FastAPI Image Classifier
 
 A small CPU-friendly image classification service built around a Hugging Face model, exported to ONNX, and quantized for faster inference.
