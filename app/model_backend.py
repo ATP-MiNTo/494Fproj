@@ -90,8 +90,8 @@ class OnnxImageClassifier:
 
     def predict(self, image_bytes: bytes) -> PredictionResult:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        inputs = self.processor(images=image, return_tensors="np")
-        pixel_values = inputs["pixel_values"].astype(np.float32)
+        inputs = self.processor(images=image, return_tensors="pt")
+        pixel_values = inputs["pixel_values"].numpy().astype(np.float32)
         logits = self.session.run(None, {self.input_name: pixel_values})[0][0]
         probabilities = np.exp(logits - np.max(logits))
         probabilities = probabilities / probabilities.sum()
@@ -133,7 +133,13 @@ def export_model_assets(settings: Settings | None = None) -> None:
     torch_classifier = get_torch_classifier(config.hf_model_name)
     torch_classifier.export_checkpoint(config.torch_weights_path, config.hf_model_name)
     torch_classifier.export_onnx(config.onnx_path, config.input_size)
-    quantize_dynamic(str(config.onnx_path), str(config.quantized_onnx_path), weight_type=QuantType.QInt8)
+    
+    # Try unsigned INT8 quantization
+    try:
+        quantize_dynamic(str(config.onnx_path), str(config.quantized_onnx_path), weight_type=QuantType.QUInt8)
+        print("✓ QUInt8 quantization successful")
+    except Exception as e:
+        print(f"⚠ Quantization failed: {type(e).__name__} - {str(e)[:100]}")
 
 
 def benchmark_predictions(

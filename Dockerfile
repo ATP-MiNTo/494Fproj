@@ -1,4 +1,4 @@
-FROM cgr.dev/chainguard/python:latest-dev AS builder
+FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -10,9 +10,9 @@ COPY requirements.txt ./
 RUN python -m pip install --upgrade pip \
     && pip install --prefix=/install -r requirements.txt
 
-FROM cgr.dev/chainguard/python:latest
+FROM python:3.11-slim
 
-ENV PYTHONPATH=/install/lib/python3.12/site-packages
+ENV PYTHONPATH=/install/lib/python3.11/site-packages
 
 WORKDIR /app
 
