@@ -1,4 +1,4 @@
-#---
+---
 title: FastAPI Image Classifier
 emoji: "🖼️"
 colorFrom: "blue"
