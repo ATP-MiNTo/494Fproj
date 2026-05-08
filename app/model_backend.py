@@ -17,16 +17,22 @@ from PIL import Image
 from onnxruntime.quantization import QuantType, quantize_dynamic
 from transformers import AutoConfig, AutoImageProcessor, AutoModelForImageClassification
 
-from .config import Settings, get_settings
-from .label_map import coarse_label
+from app.config import Settings, get_settings
+from app.label_map import coarse_label
 
 
+# =========================
+# RESULT TYPE
+# =========================
 @dataclass(frozen=True)
 class PredictionResult:
     label: str
     confidence: float
 
 
+# =========================
+# TORCH MODEL
+# =========================
 class _TorchExportWrapper(nn.Module):
     def __init__(self, model: nn.Module) -> None:
         super().__init__()
@@ -46,41 +52,41 @@ class TorchImageClassifier:
     def predict(self, image_bytes: bytes) -> PredictionResult:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         inputs = self.processor(images=image, return_tensors="pt")
+
         with torch.inference_mode():
             outputs = self.model(**inputs)
-            probabilities = torch.softmax(outputs.logits, dim=-1)[0]
-        top_index = int(torch.argmax(probabilities).item())
-        raw_label = self.id2label.get(top_index, str(top_index))
+            probs = torch.softmax(outputs.logits, dim=-1)[0]
+
+        idx = int(torch.argmax(probs).item())
+        raw_label = self.id2label.get(idx, str(idx))
+
         return PredictionResult(
             label=coarse_label(raw_label),
-            confidence=float(probabilities[top_index].item()),
+            confidence=float(probs[idx].item()),
         )
-
-    def export_checkpoint(self, output_path: Path, model_name: str) -> None:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "model_name": model_name,
-            "state_dict": self.model.state_dict(),
-            "id2label": self.id2label,
-        }
-        torch.save(payload, output_path)
 
     def export_onnx(self, output_path: Path, input_size: int) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        dummy_image = Image.new("RGB", (input_size, input_size), color=(255, 255, 255))
-        dummy_inputs = self.processor(images=dummy_image, return_tensors="pt")["pixel_values"]
+
+        dummy = Image.new("RGB", (input_size, input_size))
+        inputs = self.processor(images=dummy, return_tensors="pt")["pixel_values"]
+
         wrapper = _TorchExportWrapper(self.model)
+
         torch.onnx.export(
             wrapper,
-            dummy_inputs,
+            inputs,
             output_path,
             input_names=["pixel_values"],
             output_names=["logits"],
-            dynamic_axes={"pixel_values": {0: "batch_size"}, "logits": {0: "batch_size"}},
+            dynamic_axes={"pixel_values": {0: "batch"}, "logits": {0: "batch"}},
             opset_version=17,
         )
 
 
+# =========================
+# ONNX MODEL
+# =========================
 class OnnxImageClassifier:
     def __init__(self, model_path: Path, model_name: str) -> None:
         self.session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
@@ -91,72 +97,100 @@ class OnnxImageClassifier:
     def predict(self, image_bytes: bytes) -> PredictionResult:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         inputs = self.processor(images=image, return_tensors="np")
-        pixel_values = inputs["pixel_values"].astype(np.float32)
-        logits = self.session.run(None, {self.input_name: pixel_values})[0][0]
-        probabilities = np.exp(logits - np.max(logits))
-        probabilities = probabilities / probabilities.sum()
-        top_index = int(np.argmax(probabilities))
-        raw_label = self.id2label.get(top_index, str(top_index))
-        return PredictionResult(label=coarse_label(raw_label), confidence=float(probabilities[top_index]))
+
+        logits = self.session.run(None, {
+            self.input_name: inputs["pixel_values"].astype(np.float32)
+        })[0][0]
+
+        probs = np.exp(logits - np.max(logits))
+        probs = probs / probs.sum()
+
+        idx = int(np.argmax(probs))
+        raw_label = self.id2label.get(idx, str(idx))
+
+        return PredictionResult(
+            label=coarse_label(raw_label),
+            confidence=float(probs[idx]),
+        )
 
 
+# =========================
+# LOADERS
+# =========================
 @lru_cache(maxsize=1)
-def get_torch_classifier(model_name: str | None = None) -> TorchImageClassifier:
+def get_torch_classifier(model_name: str | None = None):
     settings = get_settings()
     return TorchImageClassifier(model_name or settings.hf_model_name)
 
 
 @lru_cache(maxsize=1)
-def get_onnx_classifier(model_path: str, model_name: str) -> OnnxImageClassifier:
+def get_onnx_classifier(model_path: str, model_name: str):
     return OnnxImageClassifier(Path(model_path), model_name)
 
 
+# =========================
+# SELECT BACKEND
+# =========================
 def get_best_classifier(settings: Settings | None = None) -> Callable[[bytes], PredictionResult]:
     config = settings or get_settings()
+
     if config.quantized_onnx_path.exists():
-        backend = get_onnx_classifier(str(config.quantized_onnx_path), config.hf_model_name)
-        return backend.predict
+        return get_onnx_classifier(str(config.quantized_onnx_path), config.hf_model_name).predict
+
     if config.onnx_path.exists():
-        backend = get_onnx_classifier(str(config.onnx_path), config.hf_model_name)
-        return backend.predict
-    backend = get_torch_classifier(config.hf_model_name)
-    return backend.predict
+        return get_onnx_classifier(str(config.onnx_path), config.hf_model_name).predict
+
+    return get_torch_classifier(config.hf_model_name).predict
 
 
 def predict_image_bytes(image_bytes: bytes, settings: Settings | None = None) -> PredictionResult:
-    classifier = get_best_classifier(settings)
-    return classifier(image_bytes)
+    return get_best_classifier(settings)(image_bytes)
 
 
+# =========================
+# EXPORT + QUANTIZE
+# =========================
 def export_model_assets(settings: Settings | None = None) -> None:
     config = settings or get_settings()
-    torch_classifier = get_torch_classifier(config.hf_model_name)
-    torch_classifier.export_checkpoint(config.torch_weights_path, config.hf_model_name)
-    torch_classifier.export_onnx(config.onnx_path, config.input_size)
-    quantize_dynamic(str(config.onnx_path), str(config.quantized_onnx_path), weight_type=QuantType.QInt8)
+    config.model_dir.mkdir(parents=True, exist_ok=True)
+
+    model = get_torch_classifier(config.hf_model_name)
+
+    if not config.onnx_path.exists():
+        model.export_onnx(config.onnx_path, config.input_size)
+
+    if not config.quantized_onnx_path.exists():
+        quantize_dynamic(
+            str(config.onnx_path),
+            str(config.quantized_onnx_path),
+            weight_type=QuantType.QInt8,
+        )
 
 
+# =========================
+# BENCHMARK
+# =========================
 def benchmark_predictions(
     predictor: Callable[[bytes], PredictionResult],
     image_bytes: bytes,
     runs: int = 20,
     warmup_runs: int = 5,
-) -> dict[str, float]:
+):
     for _ in range(warmup_runs):
         predictor(image_bytes)
 
-    timings: list[float] = []
+    times = []
     for _ in range(runs):
-        start = time.perf_counter()
+        t0 = time.perf_counter()
         predictor(image_bytes)
-        timings.append(time.perf_counter() - start)
+        times.append(time.perf_counter() - t0)
 
-    average_seconds = statistics.mean(timings)
     return {
-        "latency_ms": statistics.median(timings) * 1000.0,
-        "throughput_rps": 1.0 / average_seconds if average_seconds else 0.0,
+        "latency_ms": statistics.median(times) * 1000,
+        "p95_ms": np.percentile(times, 95) * 1000,
+        "throughput_rps": 1 / statistics.mean(times),
     }
 
 
-def serialize_benchmark_report(rows: list[dict[str, float | str]]) -> str:
+def serialize_benchmark_report(rows):
     return json.dumps(rows, indent=2)

@@ -7,7 +7,7 @@ from fastapi import HTTPException, UploadFile, status
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field, model_validator
 
-from .config import Settings
+from app.config import Settings
 
 
 class ImageUploadMetadata(BaseModel):
