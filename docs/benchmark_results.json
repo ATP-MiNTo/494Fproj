@@ -1,0 +1,20 @@
+[
+  {
+    "variant": "Original",
+    "model_size_mb": 37.52285575866699,
+    "latency_ms": 34.61244999925839,
+    "throughput_rps": 28.403309383136804
+  },
+  {
+    "variant": "ONNX",
+    "model_size_mb": 36.97459030151367,
+    "latency_ms": 6.13465000060387,
+    "throughput_rps": 163.95283731137764
+  },
+  {
+    "variant": "Quantized",
+    "model_size_mb": 9.554549217224121,
+    "latency_ms": 31.04430000166758,
+    "throughput_rps": 31.78677431840183
+  }
+]
