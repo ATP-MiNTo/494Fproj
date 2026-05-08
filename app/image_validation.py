@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import HTTPException, UploadFile, status
 from PIL import Image, UnidentifiedImageError
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ValidationError
 
 from .config import Settings
 
@@ -32,11 +32,14 @@ async def read_and_validate_image(file: UploadFile, settings: Settings) -> bytes
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File name is required")
 
     data = await file.read(settings.max_upload_bytes + 1)
-    metadata = ImageUploadMetadata(
-        filename=file.filename,
-        content_type=file.content_type or "",
-        size_bytes=len(data),
-    )
+    try:
+        metadata = ImageUploadMetadata(
+            filename=file.filename,
+            content_type=file.content_type or "",
+            size_bytes=len(data),
+        )
+    except ValidationError:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
 
     if metadata.size_bytes > settings.max_upload_bytes:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File exceeds 5 MB limit")
