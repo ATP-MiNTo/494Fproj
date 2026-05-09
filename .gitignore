@@ -93,16 +93,7 @@ docker-compose*.yml
 Dockerfile*
 !Dockerfile
 
-# Model artifacts
-model/*.pth
-model/*.pt
-model/*.h5
-model/*.onnx
-model/*.pb
-model/*.tflite
-model/*.joblib
-model/*.pkl
-model/*.ckpt
+# Model files are committed for deployment to HF Spaces
 
 # VS Code
 .vscode/
