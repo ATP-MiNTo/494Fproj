@@ -64,6 +64,10 @@ def create_app(use_process_pool: bool = True, predictor=None) -> FastAPI:
 
         return PredictionResponse(label=result.label, confidence=result.confidence)
 
+    @app.get("/")
+    async def root() -> dict[str, str]:
+        return {"status": "ok", "message": "Image Classifier API is running"}
+
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}

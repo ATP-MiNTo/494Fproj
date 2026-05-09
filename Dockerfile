@@ -12,16 +12,21 @@ RUN python -m pip install --upgrade pip \
 
 FROM python:3.11-slim
 
-ENV PYTHONPATH=/install/lib/python3.11/site-packages
+ENV PYTHONPATH=/install/lib/python3.11/site-packages \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
 COPY --from=builder /install /install
 COPY app ./app
-COPY model ./model
 COPY scripts ./scripts
 COPY README.md ./README.md
 
-EXPOSE 8000
+# Create model directory and generate models at build time
+RUN mkdir -p model && \
+    python scripts/export_models.py
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 7860
+
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
