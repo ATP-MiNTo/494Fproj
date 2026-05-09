@@ -1,0 +1,62 @@
+{
+  "info": {
+    "_postman_id": "5d2c2b4c-4d9b-4e57-8f5c-2e8a8a7c2f10",
+    "name": "Image Classification API",
+    "description": "Postman collection for the FastAPI image classification service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/healthz",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "healthz"
+          ]
+        },
+        "description": "Check whether the API is running."
+      },
+      "response": []
+    },
+    {
+      "name": "Predict Image Class",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "description": "Attach a JPEG, PNG, GIF, or WebP image file."
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/predict",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "predict"
+          ]
+        },
+        "description": "Upload an image and receive a JSON response with label and confidence."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    }
+  ]
+}
