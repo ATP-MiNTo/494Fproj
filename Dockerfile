@@ -12,7 +12,7 @@ RUN python -m pip install --upgrade pip \
 
 FROM python:3.11-slim
 
-ENV PYTHONPATH=/install/lib/python3.11/site-packages \
+ENV PYTHONPATH=/app:/install/lib/python3.11/site-packages \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
